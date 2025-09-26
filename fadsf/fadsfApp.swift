@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct fadsfApp: App {
+struct OPSECCheckApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
