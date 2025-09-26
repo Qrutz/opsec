@@ -187,7 +187,7 @@ class OPSECCheckService: ObservableObject {
                 throw URLError(.badURL)
             }
             
-            let (data, response) = try await session.data(from: url)
+            let (data, _) = try await session.data(from: url)
             let responseObj = try JSONDecoder().decode(MullvadResponse.self, from: data)
             let latency = Date().timeIntervalSince(startTime)
             
@@ -222,7 +222,7 @@ class OPSECCheckService: ObservableObject {
                 throw URLError(.badURL)
             }
             
-            let (data, response) = try await session.data(from: url)
+            let (data, _) = try await session.data(from: url)
             let responseObj = try JSONDecoder().decode(IPifyResponse.self, from: data)
             let latency = Date().timeIntervalSince(startTime)
             
@@ -240,7 +240,7 @@ class OPSECCheckService: ObservableObject {
                 do {
                     guard let url = URL(string: endpoint) else { continue }
                     
-                    let (data, response) = try await session.data(from: url)
+                    let (data, _) = try await session.data(from: url)
                     
                     // Try to parse as IPifyResponse first
                     if let responseObj = try? JSONDecoder().decode(IPifyResponse.self, from: data) {
@@ -313,7 +313,7 @@ class OPSECCheckService: ObservableObject {
                     continue
                 }
                 
-                let (data, response) = try await session.data(from: url)
+                let (data, _) = try await session.data(from: url)
                 let latency = Date().timeIntervalSince(startTime)
                 
                 return DNSCheckResult(
@@ -352,14 +352,33 @@ class OPSECCheckService: ObservableObject {
         let locale = Locale.current
         
         return DeviceMetadata(
-            deviceName: "Apple TV",
+            deviceName: getDeviceName(),
             modelIdentifier: getModelIdentifier(),
             osVersion: "tvOS \(ProcessInfo.processInfo.operatingSystemVersionString)",
             locale: locale.identifier,
             region: locale.region?.identifier ?? "Unknown",
             language: locale.language.languageCode?.identifier ?? "Unknown",
-            identifierForVendor: "tvOS-Device"
+            identifierForVendor: getIdentifierForVendor()
         )
+    }
+    
+    private func getDeviceName() -> String {
+        // For tvOS, use hostname as the device name
+        let hostname = ProcessInfo.processInfo.hostName
+        
+        // Extract the first part before any dots
+        if let deviceName = hostname.components(separatedBy: ".").first, !deviceName.isEmpty {
+            return deviceName
+        }
+        
+        // Fallback to a more descriptive name based on model
+        let model = getModelIdentifier()
+        if model.contains("AppleTV") {
+            return "Apple TV"
+        }
+        
+        // Final fallback
+        return "tvOS Device"
     }
     
     private func getModelIdentifier() -> String {
@@ -371,6 +390,17 @@ class OPSECCheckService: ObservableObject {
             }
         }
         return modelCode ?? "Unknown"
+    }
+    
+    private func getIdentifierForVendor() -> String {
+        // For tvOS, we can use a combination of model and system info
+        let model = getModelIdentifier()
+        let systemInfo = ProcessInfo.processInfo
+        let hostname = systemInfo.hostName
+        
+        // Create a pseudo-IDFV based on device characteristics
+        let combined = "\(model)-\(hostname)"
+        return String(combined.hash)
     }
     
     private func getLocalNetworkInterfaces() -> [NetworkInterface] {
